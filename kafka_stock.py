@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, jsonify
 from flask_socketio import SocketIO
 from confluent_kafka import Producer, Consumer
@@ -29,9 +32,6 @@ producer = Producer(kafka_config)
 consumer = Consumer(kafka_config)
 consumer.subscribe([topic])
 
-# Variable to hold the latest data received from Kafka
-latest_data = {}
-data = {}
 def fetch_data_from_api():
     url = "https://stocktraders.vn/service/data/getTotalTradeReal"
     payload = {"TotalTradeRealRequest": {"account": "StockTraders"}}
@@ -52,13 +52,12 @@ def produce():
             try:
                 value = json.dumps(data)
                 key = "data_key"
+                print(f"Producing data: {value}")
                 producer.produce(topic, key=key, value=value, callback=lambda err, msg: print(f"Producer callback: {'Error: ' + str(err) if err else 'Success'}"))
                 producer.flush()
             except Exception as e:
                 print(f"Producer error: {e}")
         time.sleep(10)
-
-
 
 def consume():
     global latest_data
@@ -68,11 +67,10 @@ def consume():
             value = msg.value().decode("utf-8") if msg.value() else None
             if value:
                 try:
-                    latest_data = json.loads(value)
-                    
-                      # Update the global variable with the latest data
-                    print(f"Consumer received data: {latest_data}")
-                    socketio.emit('new_data', latest_data)
+                    data = json.loads(value)
+                    latest_data = data
+                    print(f"Consumer updated data: {latest_data}")
+                    socketio.emit('new_data', data)
                 except json.JSONDecodeError as e:
                     print(f"JSON decoding error: {e}")
         elif msg is not None and msg.error():
@@ -83,9 +81,9 @@ consumer_thread = threading.Thread(target=consume)
 consumer_thread.daemon = True
 consumer_thread.start()
 
-@app.route('/data')
+@app.route('/')
 def index():
-    return jsonify(latest_data)
+    return jsonify({"message": "success", "data": latest_data})
 
 if __name__ == "__main__":
     # Start a thread for the producer
@@ -94,4 +92,4 @@ if __name__ == "__main__":
     producer_thread.start()
 
     # Run the Flask server with WebSocket support
-    # socketio.run(app, host='0.0.0.0', port=5005)
+    # socketio.run(app, host='0.0.0.0', port=5008)
