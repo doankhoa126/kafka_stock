@@ -91,5 +91,7 @@ if __name__ == "__main__":
     producer_thread.daemon = True
     producer_thread.start()
 
+    port = int(os.getenv('PORT', 5008))
+    socketio.run(app, host='0.0.0.0', port=port)
     # Run the Flask server with WebSocket support
     # socketio.run(app, host='0.0.0.0', port=5008)
