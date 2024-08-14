@@ -31,7 +31,7 @@ consumer.subscribe([topic])
 
 # Variable to hold the latest data received from Kafka
 latest_data = {}
-
+data = {}
 def fetch_data_from_api():
     url = "https://stocktraders.vn/service/data/getTotalTradeReal"
     payload = {"TotalTradeRealRequest": {"account": "StockTraders"}}
@@ -48,16 +48,17 @@ def fetch_data_from_api():
 def produce():
     while True:
         data = fetch_data_from_api()
-     
         if data:
             try:
                 value = json.dumps(data)
                 key = "data_key"
-                producer.produce(topic, key=key, value=value, callback=lambda err, msg: print(f"Producer callback: {err}"))
+                producer.produce(topic, key=key, value=value, callback=lambda err, msg: print(f"Producer callback: {'Error: ' + str(err) if err else 'Success'}"))
                 producer.flush()
             except Exception as e:
                 print(f"Producer error: {e}")
         time.sleep(10)
+
+
 
 def consume():
     global latest_data
@@ -82,7 +83,7 @@ consumer_thread = threading.Thread(target=consume)
 consumer_thread.daemon = True
 consumer_thread.start()
 
-@app.route('/datadata')
+@app.route('/data')
 def index():
     return jsonify(latest_data)
 
@@ -93,4 +94,4 @@ if __name__ == "__main__":
     producer_thread.start()
 
     # Run the Flask server with WebSocket support
-    # socketio.run(app, host='0.0.0.0', port=5008)
+    # socketio.run(app, host='0.0.0.0', port=5005)
