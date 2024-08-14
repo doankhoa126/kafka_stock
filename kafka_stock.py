@@ -67,7 +67,7 @@ consumer_thread = threading.Thread(target=consume)
 consumer_thread.daemon = True
 consumer_thread.start()
 
-@app.route('/')
+@app.route('/data')
 def index():
     return jsonify({"message": "Server is running"})
 
