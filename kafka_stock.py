@@ -78,4 +78,4 @@ if __name__ == "__main__":
     producer_thread.start()
 
     # Run the Flask server with WebSocket support
-    socketio.run(app, host='0.0.0.0', port=5003)
+     #socketio.run(app, host='0.0.0.0', port=5003)
