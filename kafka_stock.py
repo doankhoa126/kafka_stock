@@ -82,7 +82,7 @@ consumer_thread = threading.Thread(target=consume)
 consumer_thread.daemon = True
 consumer_thread.start()
 
-@app.route('/')
+@app.route('/datadata')
 def index():
     return jsonify(latest_data)
 
