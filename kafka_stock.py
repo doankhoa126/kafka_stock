@@ -22,43 +22,58 @@ kafka_config = {
 
 topic = "traddingData"
 
+# Create Kafka Producer
+producer = Producer(kafka_config)
+
 # Create Kafka Consumer
 consumer = Consumer(kafka_config)
 consumer.subscribe([topic])
+
+# Variable to hold the latest data received from Kafka
+latest_data = {}
 
 def fetch_data_from_api():
     url = "https://stocktraders.vn/service/data/getTotalTradeReal"
     payload = {"TotalTradeRealRequest": {"account": "StockTraders"}}
     headers = {'Content-Type': 'application/json'}
 
-    response = requests.post(url, json=payload, headers=headers)
-
-    if response.status_code == 200 or response.status_code == 201:
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise an HTTPError for bad responses (4xx or 5xx)
         return response.json()
-    else:
+    except requests.RequestException as e:
+        print(f"API request error: {e}")
         return None
 
 def produce():
-    producer = Producer(kafka_config)
     while True:
         data = fetch_data_from_api()
+     
         if data:
-            value = json.dumps(data)
-            key = "data_key"
-            producer.produce(topic, key=key, value=value)
-            producer.flush()
-            
+            try:
+                value = json.dumps(data)
+                key = "data_key"
+                producer.produce(topic, key=key, value=value, callback=lambda err, msg: print(f"Producer callback: {err}"))
+                producer.flush()
+            except Exception as e:
+                print(f"Producer error: {e}")
         time.sleep(10)
 
 def consume():
+    global latest_data
     while True:
-        msg = consumer.poll(1.0)  # Poll for messages from Kafka
+        msg = consumer.poll(1.0)
         if msg is not None and not msg.error():
             value = msg.value().decode("utf-8") if msg.value() else None
             if value:
-                data = json.loads(value)
-                print(f"Received data from topic {topic}: value = {data}")
-                socketio.emit('new_data', data)  # Emit to WebSocket clients
+                try:
+                    latest_data = json.loads(value)
+                    
+                      # Update the global variable with the latest data
+                    print(f"Consumer received data: {latest_data}")
+                    socketio.emit('new_data', latest_data)
+                except json.JSONDecodeError as e:
+                    print(f"JSON decoding error: {e}")
         elif msg is not None and msg.error():
             print(f"Consumer error: {msg.error()}")
 
@@ -67,9 +82,9 @@ consumer_thread = threading.Thread(target=consume)
 consumer_thread.daemon = True
 consumer_thread.start()
 
-@app.route('/data')
+@app.route('/')
 def index():
-    return jsonify({"message": "Server is running"})
+    return jsonify(latest_data)
 
 if __name__ == "__main__":
     # Start a thread for the producer
@@ -78,4 +93,4 @@ if __name__ == "__main__":
     producer_thread.start()
 
     # Run the Flask server with WebSocket support
-     #socketio.run(app, host='0.0.0.0', port=5003)
+    # socketio.run(app, host='0.0.0.0', port=5008)
