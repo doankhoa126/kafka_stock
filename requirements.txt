@@ -1,3 +1,5 @@
 Flask
-gunicorn
+Flask-SocketIO
 requests
+confluent-kafka
+eventlet
